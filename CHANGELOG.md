@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.5
+
+- feat(svelte): Add Svelte 5 bindings for persistent text streaming (#13)
+- Internally switched from paginator helper to built-in .paginate, removing peer
+  dependency on convex-helpers
+
 ## 0.3.4
 
 - Updates the /test entrypoint for compatibility with convex-test's new
