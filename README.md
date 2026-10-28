@@ -183,7 +183,7 @@ const { text, status } = useStream(
 ### Svelte (beta)
 
 Svelte 5 bindings are community-supported and in beta. They need `svelte` and
-[`convex-svelte`](https://github.com/get-convex/convex-svelte), with
+[`convex-svelte`](https://github.com/convex/convex-svelte), with
 `setupConvex` called in a parent component. Reactive inputs are passed as
 getters. See [`example-svelte/`](./example-svelte/) for the chat app.
 
