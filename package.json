@@ -1,11 +1,11 @@
 {
   "name": "@convex-dev/persistent-text-streaming",
   "description": "A Convex component for streaming durable text to the client, from LLMs and other sources.",
-  "repository": "github:get-convex/persistent-text-streaming",
-  "homepage": "https://github.com/get-convex/persistent-text-streaming#readme",
+  "repository": "github:convex/persistent-text-streaming",
+  "homepage": "https://github.com/convex/persistent-text-streaming#readme",
   "bugs": {
     "email": "support@convex.dev",
-    "url": "https://github.com/get-convex/persistent-text-streaming/issues"
+    "url": "https://github.com/convex/persistent-text-streaming/issues"
   },
   "version": "0.3.5",
   "license": "Apache-2.0",
