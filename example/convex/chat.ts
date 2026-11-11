@@ -4,8 +4,6 @@ import { StreamId } from "@convex-dev/persistent-text-streaming";
 import { OpenAI } from "openai";
 import { streamingComponent } from "./streaming";
 
-const openai = new OpenAI();
-
 export const streamChat = httpAction(async (ctx, request) => {
   const body = (await request.json()) as {
     streamId: string;
@@ -18,6 +16,7 @@ export const streamChat = httpAction(async (ctx, request) => {
     request,
     body.streamId as StreamId,
     async (ctx, request, streamId, append) => {
+      const openai = new OpenAI();
       // Lets grab the history up to now so that the AI has some context
       const history = await ctx.runQuery(internal.messages.getHistory);
 
