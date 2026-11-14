@@ -45,9 +45,10 @@ export function useStream(
   const [streamEnded, setStreamEnded] = useState<boolean | null>(null);
   const [resumed, setResumed] = useState(false);
 
-  // Track the active streamId to handle multiple streams and serve as a
-  // Strict Mode guard (prevents double-firing when the same streamId is seen).
-  const activeStreamRef = useRef<StreamId | undefined>(undefined);
+  // Every stream ID this hook has POSTed. Aborting a request does not stop
+  // the backend writer, so a second POST for the same ID could start a
+  // second writer on the same stream.
+  const attempted = useRef(new Set<StreamId>());
 
   const usePersistence = useMemo(() => {
     // Something is wrong with the stream, so we need to use the database value.
@@ -77,19 +78,19 @@ export function useStream(
       return;
     }
 
+    // Reset state from any previous stream
+    const isResume = attempted.current.has(streamId);
+    setResumed(isResume);
+    setStreamBody("");
+    setStreamEnded(null);
+
     // The request for this streamId was already sent, for example before
     // Strict Mode re-ran this effect. Read the database instead of starting
     // a second writer.
-    if (streamId === activeStreamRef.current) {
-      setResumed(true);
+    if (isResume) {
       return;
     }
-
-    // New stream: reset state and track the new streamId
-    activeStreamRef.current = streamId;
-    setResumed(false);
-    setStreamBody("");
-    setStreamEnded(null);
+    attempted.current.add(streamId);
 
     const controller = new AbortController();
 

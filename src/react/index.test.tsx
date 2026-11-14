@@ -19,11 +19,16 @@ const query = {} as Parameters<typeof useStream>[0];
 const address = "https://example.convex.site/chat-stream";
 
 type FetchInit = { headers: Record<string, string>; signal: AbortSignal };
-type Props = { url: URL; authToken: string; headers: Record<string, string> };
+type Props = {
+  url: URL;
+  authToken: string;
+  headers: Record<string, string>;
+  id?: string;
+};
 const fetchMock = vi.fn<(url: URL, init: FetchInit) => Promise<Response>>();
 
-function Stream({ url, ...opts }: Props) {
-  const { text, status } = useStream(query, url, true, "a" as StreamId, opts);
+function Stream({ url, id = "a", ...opts }: Props) {
+  const { text, status } = useStream(query, url, true, id as StreamId, opts);
   return `${status}: ${text}`;
 }
 
@@ -76,6 +81,22 @@ test("Strict Mode reads the database instead of sending the request again", () =
   );
 
   expect(fetchMock).toHaveBeenCalledTimes(1);
+  expect(container.textContent).toBe("streaming: from the database");
+  act(() => root.unmount());
+});
+
+test("returning to a stream reads the database instead of sending the request again", () => {
+  fetchMock.mockReturnValue(new Promise(() => {}));
+  const props: Props = { url: new URL(address), authToken: "", headers: {} };
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  act(() => root.render(<Stream {...props} id="a" />));
+  act(() => root.render(<Stream {...props} id="b" />));
+  persisted.set("a", { text: "from the database", status: "streaming" });
+
+  act(() => root.render(<Stream {...props} id="a" />));
+
+  expect(fetchMock).toHaveBeenCalledTimes(2);
   expect(container.textContent).toBe("streaming: from the database");
   act(() => root.unmount());
 });
