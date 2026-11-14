@@ -43,6 +43,7 @@ export function useStream(
 ) {
   const [streamBody, setStreamBody] = useState<string>("");
   const [streamEnded, setStreamEnded] = useState<boolean | null>(null);
+  const [resumed, setResumed] = useState(false);
 
   // Track the active streamId to handle multiple streams and serve as a
   // Strict Mode guard (prevents double-firing when the same streamId is seen).
@@ -53,13 +54,18 @@ export function useStream(
     if (streamEnded === false) {
       return true;
     }
+    // The HTTP stream for this ID was already used, so only the database has
+    // the full text.
+    if (resumed) {
+      return true;
+    }
     // If we're not driving the stream, we must use the database value.
     if (!driven) {
       return true;
     }
     // Otherwise, we'll try to drive the stream and use the HTTP response.
     return false;
-  }, [driven, streamEnded]);
+  }, [driven, streamEnded, resumed]);
 
   const persistentBody = useQuery(
     getPersistentBody,
@@ -71,13 +77,17 @@ export function useStream(
       return;
     }
 
-    // Strict Mode guard: don't restart streaming for the same streamId
+    // The request for this streamId was already sent, for example before
+    // Strict Mode re-ran this effect. Read the database instead of starting
+    // a second writer.
     if (streamId === activeStreamRef.current) {
+      setResumed(true);
       return;
     }
 
     // New stream: reset state and track the new streamId
     activeStreamRef.current = streamId;
+    setResumed(false);
     setStreamBody("");
     setStreamEnded(null);
 
@@ -139,7 +149,10 @@ export function useStream(
     return () => {
       controller.abort();
     };
-  }, [driven, streamId, streamUrl, opts?.authToken, opts?.headers]);
+    // The URL and options are read when a stream starts: a new `URL` object,
+    // token or header applies to the next stream and must not abort this one.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [driven, streamId]);
 
   const body = useMemo<StreamBody>(() => {
     if (persistentBody) {
