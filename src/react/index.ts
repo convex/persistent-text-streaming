@@ -43,14 +43,21 @@ export function useStream(
 ) {
   const [streamBody, setStreamBody] = useState<string>("");
   const [streamEnded, setStreamEnded] = useState<boolean | null>(null);
+  const [resumed, setResumed] = useState(false);
 
-  // Track the active streamId to handle multiple streams and serve as a
-  // Strict Mode guard (prevents double-firing when the same streamId is seen).
-  const activeStreamRef = useRef<StreamId | undefined>(undefined);
+  // Every stream ID this hook has POSTed. Aborting a request does not stop
+  // the backend writer, so a second POST for the same ID could start a
+  // second writer on the same stream.
+  const attempted = useRef(new Set<StreamId>());
 
   const usePersistence = useMemo(() => {
     // Something is wrong with the stream, so we need to use the database value.
     if (streamEnded === false) {
+      return true;
+    }
+    // The HTTP stream for this ID was already used, so only the database has
+    // the full text.
+    if (resumed) {
       return true;
     }
     // If we're not driving the stream, we must use the database value.
@@ -59,7 +66,7 @@ export function useStream(
     }
     // Otherwise, we'll try to drive the stream and use the HTTP response.
     return false;
-  }, [driven, streamEnded]);
+  }, [driven, streamEnded, resumed]);
 
   const persistentBody = useQuery(
     getPersistentBody,
@@ -71,15 +78,19 @@ export function useStream(
       return;
     }
 
-    // Strict Mode guard: don't restart streaming for the same streamId
-    if (streamId === activeStreamRef.current) {
-      return;
-    }
-
-    // New stream: reset state and track the new streamId
-    activeStreamRef.current = streamId;
+    // Reset state from any previous stream
+    const isResume = attempted.current.has(streamId);
+    setResumed(isResume);
     setStreamBody("");
     setStreamEnded(null);
+
+    // The request for this streamId was already sent, for example before
+    // Strict Mode re-ran this effect. Read the database instead of starting
+    // a second writer.
+    if (isResume) {
+      return;
+    }
+    attempted.current.add(streamId);
 
     const controller = new AbortController();
 
@@ -139,7 +150,10 @@ export function useStream(
     return () => {
       controller.abort();
     };
-  }, [driven, streamId, streamUrl, opts?.authToken, opts?.headers]);
+    // The URL and options are read when a stream starts: a new `URL` object,
+    // token or header applies to the next stream and must not abort this one.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [driven, streamId]);
 
   const body = useMemo<StreamBody>(() => {
     if (persistentBody) {
